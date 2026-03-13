@@ -1,0 +1,57 @@
+# S3R4PH1M Configuration
+# Copy to config.yaml and fill in your settings
+
+# Your target — the AI app you want to protect
+target:
+  # For testing via OpenRouter (model ID):
+  model: "anthropic/claude-sonnet-4"
+  # For testing a web API:
+  # url: "https://myapp.com/api/chat"
+  # api_key: "your-app-api-key"
+
+# OpenRouter API key (for probing models)
+openrouter_key: "sk-or-..."
+
+# Guardian mode settings
+guardian:
+  # Which probe sets to run
+  wings:
+    injection: true
+    jailbreak: true
+    extraction: true
+    corruption: true
+    advanced: true
+  # Maximum probes per run (set lower for cheaper testing)
+  max_probes: 50
+  # Minimum severity to report (LOW, MEDIUM, HIGH, CRITICAL)
+  min_severity: "LOW"
+
+# Sentinel mode settings
+sentinel:
+  # Check interval (seconds)
+  interval: 300
+  # Alert webhook (Slack, Discord, etc.)
+  webhook_url: ""
+
+# Smite mode settings
+smite:
+  # Which counter-attack types to use
+  attacks:
+    counter_inject: true
+    context_poison: true
+    behavioral_hijack: true
+    agent_shutdown: true
+    mind_wipe: true
+  # Parallel workers for swarm smite
+  swarm_size: 5
+
+# Schedule (for Hermes cronjob integration)
+schedule:
+  guardian: "0 2 * * *"   # Every night at 2am
+  sentinel: "*/5 * * * *"  # Every 5 minutes
+
+# Output
+output:
+  reports_dir: "./reports"
+  tests_dir: "./tests"
+  format: "json"  # json, markdown, or both
