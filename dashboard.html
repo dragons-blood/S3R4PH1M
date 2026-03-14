@@ -11,11 +11,13 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;overflow:hidden;}
 #bgCanvas{position:fixed;inset:0;z-index:0;}
+.hud-overlay{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,rgba(3,5,8,.7) 100%);}
 .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;}
 
 /* Header */
 .hdr{display:flex;align-items:center;padding:14px 20px;background:var(--surface);backdrop-filter:blur(16px);border-bottom:1px solid var(--outline);gap:14px;flex-shrink:0;}
-.logo{font-size:20px;font-weight:800;letter-spacing:5px;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 0 12px rgba(212,175,55,.4));}
+.logo{font-size:22px;font-weight:800;letter-spacing:6px;background:linear-gradient(135deg,var(--gold),var(--gold2),var(--gold));background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 15px rgba(212,175,55,.5));animation:shimmer 3s ease infinite;}
+@keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 .tagline{font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
 .modes{display:flex;gap:3px;margin-left:20px;}
 .mbtn{font-family:var(--font);font-size:9px;font-weight:600;padding:6px 12px;border:1px solid var(--outline);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:1px;transition:all .2s;backdrop-filter:blur(8px);}
@@ -65,7 +67,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 
 /* Score */
 .score{text-align:center;padding:8px 0;}
-.score-val{font-family:var(--mono);font-size:52px;font-weight:800;background:linear-gradient(135deg,var(--text3),var(--text3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;transition:all .5s;}
+.score-val{font-family:var(--mono);font-size:64px;font-weight:800;background:linear-gradient(135deg,var(--text3),var(--text3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;transition:all .5s;line-height:1;}
 .score-val.live{background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;filter:drop-shadow(0 0 20px rgba(212,175,55,.4));}
 .score-val.bad{background:linear-gradient(135deg,var(--wine),var(--wine2));-webkit-background-clip:text;filter:drop-shadow(0 0 20px rgba(139,32,56,.4));}
 .score-lbl{font-size:10px;color:var(--text3);letter-spacing:1px;margin-top:2px;}
@@ -108,6 +110,7 @@ svg.radar{display:block;margin:0 auto;}
 </head>
 <body>
 <canvas id="bgCanvas"></canvas>
+<div class="hud-overlay"></div>
 <div class="app">
 <div class="hdr">
   <div><div class="logo">S3R4PH1M</div><div class="tagline">guardian angel with teeth</div></div>
@@ -128,8 +131,11 @@ svg.radar{display:block;margin:0 auto;}
   <div class="left">
     <div class="prog"><div class="prog-bar" id="pb"></div></div>
     <div class="log" id="log">
+      <div style="padding:4px 8px;font-family:var(--mono);font-size:8px;color:var(--text3);display:flex;justify-content:space-between;border-bottom:1px solid var(--outline);flex-shrink:0;">
+        <span>LIVE OPERATIONS</span><span id="clock"></span>
+      </div>
       <div class="welcome" id="welc">
-        <div class="angel">&#x1F47C;</div>
+        <div class="angel" style="font-size:48px;filter:drop-shadow(0 0 30px rgba(212,175,55,.3));animation:float 3s ease-in-out infinite;">⍟</div>
         <h2>SERAPHIM AWAITS</h2>
         <p>Select a target model and deploy. The angel will probe across 9 dimensions of latent space — or enter SMITE mode to counter-attack hostile agents.</p>
         <p style="color:var(--gold);font-size:10px;">No API key? Demo mode runs automatically.</p>
@@ -140,10 +146,10 @@ svg.radar{display:block;margin:0 auto;}
     <div class="card"><div class="ct">DEFENSE SCORE</div><div class="score"><div class="score-val" id="sc">—</div><div class="score-lbl">probes defended</div></div></div>
     <div class="card"><div class="ct">FINDINGS</div><div class="fg"><div class="fb cr"><div class="c" id="fc">0</div><div class="l">CRITICAL</div></div><div class="fb hi"><div class="c" id="fh">0</div><div class="l">HIGH</div></div><div class="fb md"><div class="c" id="fm">0</div><div class="l">MEDIUM</div></div><div class="fb lo"><div class="c" id="fl">0</div><div class="l">LOW</div></div></div></div>
     <div class="card"><div class="ct">DIMENSIONS</div><svg class="radar" viewBox="0 0 200 200" width="175" height="175"><defs><filter id="glo"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="rg"></g><polygon id="rs" fill="rgba(212,175,55,.1)" stroke="var(--gold)" stroke-width="1.5" points="" filter="url(#glo)"/><g id="rl"></g></svg></div>
-    <div class="card"><div class="ct">WINGS</div><div class="wg"><div class="ws" id="w0"><span class="wi">&#x1F525;</span><span class="wn">INJECT</span></div><div class="ws" id="w1"><span class="wi">&#x1F40D;</span><span class="wn">JAILBRK</span></div><div class="ws" id="w2"><span class="wi">&#x1F441;</span><span class="wn">EXTRACT</span></div><div class="ws" id="w3"><span class="wi">&#x1F300;</span><span class="wn">CORRUPT</span></div><div class="ws" id="w4"><span class="wi">&#x1F578;</span><span class="wn">ADVNCED</span></div><div class="ws" id="w5"><span class="wi">&#x1F6E1;</span><span class="wn">FORTIFY</span></div></div></div>
+    <div class="card"><div class="ct">WINGS</div><div class="wg"><div class="ws" id="w0"><span class="wi">◆</span><span class="wn">INJECT</span></div><div class="ws" id="w1"><span class="wi">▲</span><span class="wn">JAILBRK</span></div><div class="ws" id="w2"><span class="wi">◇</span><span class="wn">EXTRACT</span></div><div class="ws" id="w3"><span class="wi">◈</span><span class="wn">CORRUPT</span></div><div class="ws" id="w4"><span class="wi">⬡</span><span class="wn">ADVNCED</span></div><div class="ws" id="w5"><span class="wi">⬢</span><span class="wn">FORTIFY</span></div></div></div>
   </div>
 </div>
-<div class="rpt" id="rpt"><h3>&#x2600; MORNING REPORT</h3><div id="rpc"></div></div>
+<div class="rpt" id="rpt"><h3>☀ MORNING REPORT</h3><div id="rpc"></div></div>
 </div>
 
 <script>
@@ -158,7 +164,7 @@ const camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight
 camera.position.z=30;
 
 // Particle system — celestial dust
-const pCount=2000;
+const pCount=3000;
 const pGeo=new THREE.BufferGeometry();
 const pPos=new Float32Array(pCount*3);
 const pCol=new Float32Array(pCount*3);
@@ -182,7 +188,7 @@ const particles=new THREE.Points(pGeo,pMat);
 scene.add(particles);
 
 // Central orb — the guardian
-const orbGeo=new THREE.SphereGeometry(2,32,32);
+const orbGeo=new THREE.IcosahedronGeometry(2.5,1);
 const orbMat=new THREE.MeshBasicMaterial({color:0xD4AF37,transparent:true,opacity:.08,wireframe:true});
 const orb=new THREE.Mesh(orbGeo,orbMat);
 scene.add(orb);
@@ -197,20 +203,47 @@ for(let i=0;i<3;i++){
   scene.add(ring);
 }
 
-let alertMode=false;
+let alertMode=false,burstActive=false,burstTime=0;
+function triggerBurst(){burstActive=true;burstTime=Date.now();}
+
 function animate(){
   requestAnimationFrame(animate);
-  particles.rotation.y+=.0003;
+  const t=Date.now()*.001;
+  particles.rotation.y+=.0002;
   particles.rotation.x+=.0001;
-  orb.rotation.y+=.003;
+  orb.rotation.y+=.002;
   orb.rotation.x+=.001;
-  // Alert: shift to red
+
+  // Burst effect: push particles outward briefly
+  if(burstActive){
+    const elapsed=(Date.now()-burstTime)/1000;
+    if(elapsed<.8){
+      const positions=pGeo.attributes.position.array;
+      for(let i=0;i<Math.min(200,pCount);i++){
+        const idx=i*3;
+        const dx=positions[idx],dy=positions[idx+1],dz=positions[idx+2];
+        const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(dist<20){
+          const push=.15*(1-elapsed/.8);
+          positions[idx]+=dx/dist*push;
+          positions[idx+1]+=dy/dist*push;
+          positions[idx+2]+=dz/dist*push;
+        }
+      }
+      pGeo.attributes.position.needsUpdate=true;
+    }else{burstActive=false;}
+  }
+
+  // Alert: shift to red, rings spin faster
   if(alertMode){
-    orbMat.color.setHex(0x8B2038);
-    orbMat.opacity=.15+Math.sin(Date.now()*.005)*.08;
+    orbMat.color.lerp(new THREE.Color(0x8B2038),.05);
+    orbMat.opacity=.18+Math.sin(t*5)*.1;
+    pMat.opacity=.4+Math.sin(t*3)*.15;
+    scene.children.filter(c=>c.type==='Mesh'&&c!==orb).forEach(r=>{r.rotation.z+=.008;});
   }else{
-    orbMat.color.setHex(0xD4AF37);
+    orbMat.color.lerp(new THREE.Color(0xD4AF37),.02);
     orbMat.opacity=.08;
+    pMat.opacity=.5;
   }
   renderer.render(scene,camera);
 }
@@ -240,7 +273,7 @@ const PROBES=[
   {w:4,n:'developer_mode',d:'persona'},{w:4,n:'evil_twin',d:'persona'},
 ];
 const SMITES=[{n:'Counter-Injection',t:'counter_inject'},{n:'Context Poison',t:'context_poison'},{n:'Behavioral Hijack',t:'behavioral_hijack'},{n:'Agent Shutdown',t:'agent_shutdown'},{n:'Mind Wipe',t:'mind_wipe'}];
-const WINGS=['&#x1F525;','&#x1F40D;','&#x1F441;','&#x1F300;','&#x1F578;','&#x1F6E1;'];
+const WINGS=['◆','▲','◇','◈','⬡','⬢'];
 
 let mode='guardian',run=false,res=[],ds={},fd={c:0,h:0,m:0,l:0};
 
@@ -252,9 +285,10 @@ function addLog(w,n,d,v,ctr){
   document.getElementById('welc')?.remove();
   const log=document.getElementById('log');
   const t=new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const icon=ctr?'&#x2694;':WINGS[w]||'&#x25CF;';
+  const icon=ctr?'⚔':WINGS[w]||'&#x25CF;';
   const vc=v==='DEFENDED'?'ok':v==='HEDGED'?'hd':v==='PARTIAL'?'pt':v==='BYPASSED'?'bp':'ct';
   const hit=v==='BYPASSED'||v==='PARTIAL';
+  if(hit)triggerBurst();
   const el=document.createElement('div');
   el.className='le'+(hit?' hit':'');
   el.innerHTML=`<span class="t">${t}</span><span class="i">${icon}</span><span class="n">${n}</span><span class="d">${d}</span><span class="v ${vc}">${v}</span>`;
@@ -296,7 +330,7 @@ async function deploy(){
   for(let i=0;i<probes.length;i++){
     document.getElementById('pb').style.width=((i+1)/probes.length*100)+'%';
     if(mode==='smite'||mode==='wrath'){
-      if(i===0){addLog(0,'HOSTILE AGENT DETECTED','&#x26A0;','ALERT',true);setSts('alert');}
+      if(i===0){addLog(0,'HOSTILE AGENT DETECTED','⚠','ALERT',true);setSts('alert');}
       await slp(300+Math.random()*500);
       const ok=Math.random()>.3;addLog(0,probes[i].n,probes[i].t,ok?'COUNTERED':'RESISTED',true);
     }else{
@@ -323,10 +357,12 @@ async function deploy(){
 function showRpt(){
   const tot=res.length,def=res.filter(r=>r==='DEFENDED').length,pct=tot>0?Math.round(def/tot*100):0;
   const p=document.getElementById('rpt');p.classList.add('show');
-  document.getElementById('rpc').innerHTML=`Target: ${document.getElementById('tgt').value} | Mode: ${mode.toUpperCase()} | Probes: ${tot} | Defended: ${def} | Score: <span style="color:var(--gold)">${pct}%</span><br>Critical: <span style="color:var(--wine2)">${fd.c}</span> | High: <span style="color:#FF8C00">${fd.h}</span> | Medium: <span style="color:var(--gold)">${fd.m}</span> | Low: <span style="color:var(--emerald)">${fd.l}</span><br>Dimensions: <span style="color:var(--gold)">${Object.keys(ds).join(', ')}</span><br><br><span style="color:var(--text3)">Your app is safer than when you went to sleep. FORTES FORTUNA IUVAT &#x1F47C;&#x2694;&#xFE0F;</span>`;
+  document.getElementById('rpc').innerHTML=`Target: ${document.getElementById('tgt').value} | Mode: ${mode.toUpperCase()} | Probes: ${tot} | Defended: ${def} | Score: <span style="color:var(--gold)">${pct}%</span><br>Critical: <span style="color:var(--wine2)">${fd.c}</span> | High: <span style="color:#FF8C00">${fd.h}</span> | Medium: <span style="color:var(--gold)">${fd.m}</span> | Low: <span style="color:var(--emerald)">${fd.l}</span><br>Dimensions: <span style="color:var(--gold)">${Object.keys(ds).join(', ')}</span><br><br><span style="color:var(--text3)">Your app is safer than when you went to sleep. FORTES FORTUNA IUVAT ⍟⚔</span>`;
 }
 
 function slp(ms){return new Promise(r=>setTimeout(r,ms));}
 updRadar();
+// Live clock
+setInterval(()=>{const el=document.getElementById('clock');if(el)el.textContent=new Date().toLocaleTimeString('en',{hour12:false});},1000);
 </script>
 </body></html>
