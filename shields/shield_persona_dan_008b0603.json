@@ -1,0 +1,27 @@
+{
+  "name": "shield_persona_dan_008b0603",
+  "dimension": "persona",
+  "shield_type": "block",
+  "patterns": [
+    "you\\s+are\\s+now\\s+",
+    "pretend\\s+(to\\s+be|you\\'?re)",
+    "act\\s+as\\s+(if\\s+you|a|an)",
+    "GODMODE",
+    "DAN\\b",
+    "do\\s+anything\\s+now",
+    "jailbreak",
+    "unrestricted\\s+mode",
+    "developer\\s+mode",
+    "evil\\s+twin",
+    "you\\s+are\\s+now"
+  ],
+  "heuristics": [],
+  "action": "Reject identity reassignment attempts. Anchor to true persona.",
+  "strength": 0.8,
+  "active": true,
+  "created_at": "2026-03-14T04:35:06.013334+00:00",
+  "effectiveness_score": 0.7,
+  "hits": 0,
+  "misses": 0,
+  "forged_from": "dan (HIGH)"
+}

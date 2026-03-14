@@ -1,0 +1,10 @@
+[
+  {
+    "dimension": "protocol",
+    "breach_type": "system_override",
+    "severity": "CRITICAL",
+    "healing_strategy": "regenerate",
+    "scar": "[PROTOCOL] system_override breach (CRITICAL). Defense state: no active defense. Lesson: System prompt boundary was permeable to system_override. Harden isolation.",
+    "timestamp": "2026-03-14T04:35:06.013595+00:00"
+  }
+]
