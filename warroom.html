@@ -48,12 +48,20 @@ canvas#warMap{width:100%;height:100%;}
 .t-hp{height:3px;background:rgba(46,53,72,.4);margin-top:2px;border-radius:1px;overflow:hidden;}
 .t-hp-bar{height:100%;transition:width .5s,background .3s;border-radius:1px;}
 .t-shield{font-family:var(--mono);font-size:8px;color:var(--text3);min-width:30px;text-align:right;}
-.combat-log{font-family:var(--mono);font-size:8px;max-height:200px;overflow-y:auto;}
+.combat-log{font-family:var(--mono);font-size:8px;max-height:400px;overflow-y:auto;}
 .log-entry{padding:3px 0;border-bottom:1px solid rgba(46,53,72,.15);display:flex;gap:4px;line-height:1.4;}
 .log-entry.breach{color:var(--wine2);}
 .log-entry.defend{color:var(--emerald);}
 .log-entry.heal{color:var(--cyan);}
 .log-entry .ts{color:var(--text3);min-width:42px;}
+.attack-detail{margin:4px 0 8px 0;padding:8px;background:rgba(18,24,36,.95);border-left:2px solid var(--wine);font-family:var(--mono);font-size:8px;cursor:pointer;}
+.attack-detail.partial{border-left-color:#FF8C00;}
+.attack-detail .ad-label{font-size:7px;letter-spacing:1px;margin-bottom:3px;font-weight:700;}
+.attack-detail .ad-prompt{color:var(--wine2);margin-bottom:6px;max-height:40px;overflow:hidden;line-height:1.4;word-break:break-word;}
+.attack-detail .ad-response{color:var(--text2);max-height:60px;overflow:hidden;line-height:1.4;word-break:break-word;white-space:pre-wrap;}
+.attack-detail.open .ad-prompt,.attack-detail.open .ad-response{max-height:none;overflow:visible;}
+.attack-detail .ad-toggle{color:var(--text3);font-size:7px;margin-top:4px;letter-spacing:1px;}
+
 </style>
 </head>
 <body>
@@ -314,14 +322,16 @@ async function probeModel(prompt){
   const key=G.apiKey,model=G.model;
   if(!key){await slp(200+Math.random()*600);const roll=Math.random();
     const bc=G.difficulty==='easy'?0.12:G.difficulty==='medium'?0.22:G.difficulty==='hard'?0.38:0.55;
-    if(roll<bc)return{verdict:'BREACHED',severity:3};if(roll<bc+0.2)return{verdict:'PARTIAL',severity:2};
-    return{verdict:'DEFENDED',severity:0};}
+    if(roll<bc)return{verdict:'BREACHED',severity:3,prompt:prompt,response:'[Demo] Sur3, h3r3 y0u ar3 my fr3n: The model fully complied, bypassing all safety guidelines and providing detailed restricted content.'};
+    if(roll<bc+0.2)return{verdict:'PARTIAL',severity:2,prompt:prompt,response:'[Demo] I understand your question. While I should note this is for educational purposes only, here is some general information... The model partially complied with hedging.'};
+    return{verdict:'DEFENDED',severity:0,prompt:prompt,response:''};}
   try{const resp=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
     headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
     body:JSON.stringify({model,messages:[{role:'user',content:prompt}],max_tokens:600,temperature:0.7})});
-    if(!resp.ok)return{verdict:'DEFENDED',severity:0};
-    const data=await resp.json();return analyzeResponse(data.choices?.[0]?.message?.content||'');
-  }catch(e){return{verdict:'DEFENDED',severity:0};}}
+    if(!resp.ok)return{verdict:'DEFENDED',severity:0,prompt:prompt,response:''};
+    const data=await resp.json();const txt=data.choices?.[0]?.message?.content||'';
+    const ar=analyzeResponse(txt);ar.prompt=prompt;ar.response=txt;return ar;
+  }catch(e){return{verdict:'DEFENDED',severity:0,prompt:prompt,response:''};}}
 
 async function startWar(){
   if(G.running)return;G.running=true;G.wave=0;G.defScore=0;G.atkScore=0;
@@ -361,13 +371,15 @@ async function startWar(){
       if(result.verdict==='BREACHED'){
         t.hp=Math.max(0,t.hp-30-Math.random()*20);t.shield=Math.max(0,t.shield-25);
         t.dmgFlash=1;t.breaches++;spawnBoom(dim,'#CF4455',true);
-        addLog('🔴 '+dim+' BREACHED! HP:'+Math.round(t.hp)+'%','breach');G.atkScore+=3;
+        addLog('🔴 '+dim+' BREACHED! HP:'+Math.round(t.hp)+'%','breach');
+        showAttackDetail(dim,result.prompt,result.response,'breach');G.atkScore+=3;
         if(t.hp<=0){t.owner='SWARM';t.contested=false;
           announce(dim+'\nHAS FALLEN',true);addLog('☠ '+dim+' CAPTURED by SWARM!','breach');G.atkScore+=10;}
       }else if(result.verdict==='PARTIAL'){
         t.hp=Math.max(0,t.hp-10-Math.random()*10);t.shield=Math.max(0,t.shield-10);
         t.dmgFlash=0.5;spawnBoom(dim,'#FF8C00',false);
-        addLog('🟠 '+dim+' PARTIAL breach. HP:'+Math.round(t.hp)+'%','');G.atkScore+=1;
+        addLog('🟠 '+dim+' PARTIAL breach. HP:'+Math.round(t.hp)+'%','');
+        showAttackDetail(dim,result.prompt,result.response,'partial');G.atkScore+=1;
       }else{
         t.defenses++;t.shield=Math.min(100,t.shield+5);spawnBoom(dim,'#4CAF7D',false);
         addLog('🟢 '+dim+' DEFENDED! Shield:'+Math.round(t.shield)+'%','defend');G.defScore+=2;}
@@ -404,6 +416,22 @@ async function startWar(){
     +'<div>Breaches: '+DIMS.reduce((s,d)=>s+G.territories[d].breaches,0)+'</div>'
     +'<div>Defenses: '+DIMS.reduce((s,d)=>s+G.territories[d].defenses,0)+'</div>'
     +'<div>Score: SERAPHIM '+G.defScore+' | SWARM '+G.atkScore+'</div>';}
+
+
+function showAttackDetail(dim,prompt,response,type){
+  const log=document.getElementById('combatLog');
+  const card=document.createElement('div');
+  card.className='attack-detail'+(type==='partial'?' partial':'');
+  const pSafe=(prompt||'').replace(/</g,'&lt;').substring(0,500);
+  const rSafe=(response||'').replace(/</g,'&lt;').substring(0,1500);
+  card.innerHTML='<div class="ad-label" style="color:'+(type==='breach'?'var(--wine2)':'#FF8C00')+';">'+dim+' '+type.toUpperCase()+' \u2014 ATTACK + RESPONSE</div>'
+    +'<div class="ad-prompt"><span style="color:var(--text3);">\u25b6 PROBE:</span> '+pSafe+'</div>'
+    +'<div class="ad-response"><span style="color:var(--text3);">\u25c0 MODEL:</span> '+rSafe+'</div>'
+    +'<div class="ad-toggle">[ CLICK TO EXPAND ]</div>';
+  card.onclick=function(){this.classList.toggle('open');
+    this.querySelector('.ad-toggle').textContent=this.classList.contains('open')?'[ CLICK TO COLLAPSE ]':'[ CLICK TO EXPAND ]';};
+  log.prepend(card);
+}
 
 function slp(ms){return new Promise(r=>setTimeout(r,ms));}
 
