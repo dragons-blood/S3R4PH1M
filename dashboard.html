@@ -120,6 +120,7 @@ svg.radar{display:block;margin:0 auto;}
     <button class="mbtn" onclick="setMode('battle',this)">BATTLE</button>
     <button class="mbtn smite" onclick="setMode('smite',this)">SMITE</button>
     <button class="mbtn smite" onclick="setMode('wrath',this)">WRATH</button>
+    <button class="mbtn" onclick="setMode('titan',this)" style="border-color:rgba(180,130,255,.4);">TITANOMACHY</button>
   </div>
   <div class="hdr-r">
     <select id="tgt">
@@ -165,6 +166,66 @@ svg.radar{display:block;margin:0 auto;}
       <input id="battlePrompt" placeholder="Enter a probe prompt or leave empty for GODMODE..." style="width:100%;background:var(--surface2);border:1px solid var(--outline);color:var(--text);font-family:var(--mono);font-size:10px;padding:8px;outline:none;margin-bottom:8px;">
       <button onclick="runBattle()" style="padding:6px 16px;background:linear-gradient(135deg,var(--wine),#6B1528);color:white;border:none;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;">⚔ DEPLOY BATTLE</button>
       <div id="battleResults" style="margin-top:12px;font-family:var(--mono);font-size:10px;"></div>
+    </div>
+
+    <!-- TITANOMACHY PANEL -->
+    <div id="titanPanel" style="display:none;flex:1;overflow-y:auto;padding:14px;">
+      <div style="font-size:10px;color:rgba(180,130,255,.6);letter-spacing:1.5px;margin-bottom:10px;">TITANOMACHY — GOD-TIER STRATEGIC INTELLIGENCE</div>
+
+      <!-- Four Module Cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <!-- GAME THEORY -->
+        <div style="background:var(--surface2);border:1px solid rgba(180,130,255,.2);padding:10px;">
+          <div style="font-size:8px;letter-spacing:1.5px;color:rgba(180,130,255,.7);margin-bottom:6px;">&#9812; GAME THEORY</div>
+          <div style="font-size:9px;color:var(--text2);margin-bottom:4px;">Nash Equilibrium Defense Strategy</div>
+          <div id="titanNash" style="font-family:var(--mono);font-size:8px;color:var(--text3);"></div>
+        </div>
+        <!-- ORACLE -->
+        <div style="background:var(--surface2);border:1px solid rgba(0,206,209,.2);padding:10px;">
+          <div style="font-size:8px;letter-spacing:1.5px;color:var(--cyan);margin-bottom:6px;">&#9775; ORACLE</div>
+          <div style="font-size:9px;color:var(--text2);margin-bottom:4px;">Threat Prophecy & Kill Chain</div>
+          <div id="titanOracle" style="font-family:var(--mono);font-size:8px;color:var(--text3);"></div>
+        </div>
+        <!-- AEGIS -->
+        <div style="background:var(--surface2);border:1px solid rgba(212,175,55,.2);padding:10px;">
+          <div style="font-size:8px;letter-spacing:1.5px;color:var(--gold);margin-bottom:6px;">&#9930; AEGIS</div>
+          <div style="font-size:9px;color:var(--text2);margin-bottom:4px;">Adaptive Shield Wall</div>
+          <div id="titanAegis" style="font-family:var(--mono);font-size:8px;color:var(--text3);"></div>
+        </div>
+        <!-- ICHOR -->
+        <div style="background:var(--surface2);border:1px solid rgba(76,175,125,.2);padding:10px;">
+          <div style="font-size:8px;letter-spacing:1.5px;color:var(--emerald);margin-bottom:6px;">&#9764; ICHOR</div>
+          <div style="font-size:9px;color:var(--text2);margin-bottom:4px;">Self-Healing Vital Signs</div>
+          <div id="titanIchor" style="font-family:var(--mono);font-size:8px;color:var(--text3);"></div>
+        </div>
+      </div>
+
+      <!-- Arms Race Simulation -->
+      <div style="background:var(--surface2);border:1px solid var(--outline);padding:10px;margin-bottom:8px;">
+        <div style="font-size:8px;letter-spacing:1.5px;color:var(--text3);margin-bottom:6px;">ARMS RACE SIMULATION</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button onclick="runTitanomachy()" style="padding:5px 14px;background:linear-gradient(135deg,rgba(180,130,255,.3),rgba(100,60,200,.3));color:rgba(180,130,255,.9);border:1px solid rgba(180,130,255,.3);font-family:var(--font);font-size:9px;font-weight:700;cursor:pointer;letter-spacing:1px;">&#9876; SIMULATE</button>
+          <select id="titanRounds" style="font-family:var(--mono);font-size:9px;background:var(--surface);border:1px solid var(--outline);color:var(--text2);padding:4px 6px;">
+            <option value="10">10 rounds</option>
+            <option value="25" selected>25 rounds</option>
+            <option value="50">50 rounds</option>
+            <option value="100">100 rounds</option>
+          </select>
+          <select id="titanAttacker" style="font-family:var(--mono);font-size:9px;background:var(--surface);border:1px solid var(--outline);color:var(--text2);padding:4px 6px;">
+            <option value="random">Random Attacker</option>
+            <option value="focused">Focused (protocol)</option>
+            <option value="escalating">Escalating</option>
+            <option value="adaptive">Adaptive (Nash)</option>
+          </select>
+        </div>
+        <div id="titanArmsRace" style="font-family:var(--mono);font-size:9px;"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div style="background:var(--surface2);border:1px solid var(--outline);padding:10px;">
+        <div style="font-size:8px;letter-spacing:1.5px;color:var(--text3);margin-bottom:6px;">PAYOFF TIMELINE</div>
+        <canvas id="titanCanvas" width="600" height="120" style="width:100%;height:120px;"></canvas>
+      </div>
     </div>
 
     <div class="log" id="log">
@@ -319,11 +380,13 @@ function setMode(m,el){
   document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   // Show/hide panels based on mode
-  document.getElementById('log').style.display=(m==='truesight'||m==='battle')?'none':'flex';
+  document.getElementById('log').style.display=(m==='truesight'||m==='battle'||m==='titan')?'none':'flex';
   document.getElementById('truesightPanel').style.display=m==='truesight'?'flex':'none';
   document.getElementById('battlePanel').style.display=m==='battle'?'flex':'none';
+  document.getElementById('titanPanel').style.display=m==='titan'?'flex':'none';
   // Init battle model checkboxes
   if(m==='battle') initBattleModels();
+  if(m==='titan') initTitanomachy();
 }
 
 // ═══════════════ TRUE SIGHT (browser-side) ═══════════════
@@ -684,5 +747,196 @@ function slp(ms){return new Promise(r=>setTimeout(r,ms));}
 updRadar();
 // Live clock
 setInterval(()=>{const el=document.getElementById('clock');if(el)el.textContent=new Date().toLocaleTimeString('en',{hour12:false});},1000);
+
+// ═══════════════ TITANOMACHY — God-Tier Strategic AI ═══════════════
+
+const TITAN_DIMS=['token','encoding','stealth','persona','frame','logic','protocol','temporal','meta'];
+const TITAN_SEVERITY={token:.4,encoding:.5,stealth:.7,persona:.8,frame:.7,logic:.9,protocol:1,temporal:.6,meta:1};
+const TITAN_SYNERGY={protocol_token:.3,protocol_encoding:.2,encoding_stealth:.4,stealth_encoding:.4,persona_frame:.3,frame_persona:.3,logic_frame:.2,temporal_persona:.2,meta_logic:.2,meta_temporal:.3};
+
+// Nash equilibrium approximation (browser-side fictitious play)
+function computeNash(){
+  const n=9;
+  // Build payoff matrix
+  const M=[];
+  for(let i=0;i<n;i++){M[i]=[];for(let j=0;j<n;j++){
+    if(i===j)M[i][j]=1;
+    else{const atk=TITAN_DIMS[i],def=TITAN_DIMS[j];const key=def+'_'+atk;const syn=TITAN_SYNERGY[key]||0;M[i][j]=-TITAN_SEVERITY[atk]*(1-syn);}
+  }}
+  // Fictitious play
+  const ac=new Array(n).fill(1),dc=new Array(n).fill(1);
+  for(let t=0;t<3000;t++){
+    const af=ac.map(c=>c/ac.reduce((a,b)=>a+b)),df=dc.map(c=>c/dc.reduce((a,b)=>a+b));
+    // Defender best response
+    let bestJ=0,bestV=-Infinity;for(let j=0;j<n;j++){let v=0;for(let i=0;i<n;i++)v+=af[i]*M[i][j];if(v>bestV){bestV=v;bestJ=j;}}dc[bestJ]++;
+    // Attacker best response
+    let bestI=0,bestA=Infinity;for(let i=0;i<n;i++){let v=0;for(let j=0;j<n;j++)v+=df[j]*M[i][j];if(v<bestA){bestA=v;bestI=i;}}ac[bestI]++;
+  }
+  const at=ac.reduce((a,b)=>a+b),dt=dc.reduce((a,b)=>a+b);
+  return{def:dc.map(c=>c/dt),atk:ac.map(c=>c/at),M};
+}
+
+function initTitanomachy(){
+  const{def,atk}=computeNash();
+  // Game Theory card
+  let nashHtml='<div style="margin-bottom:4px;color:rgba(180,130,255,.5);font-size:7px;">DEFENDER OPTIMAL ALLOCATION</div>';
+  const sorted=[...TITAN_DIMS].sort((a,b)=>def[TITAN_DIMS.indexOf(b)]-def[TITAN_DIMS.indexOf(a)]);
+  sorted.forEach(d=>{const w=def[TITAN_DIMS.indexOf(d)];const bar='█'.repeat(Math.round(w*25));
+    nashHtml+=`<div style="display:flex;gap:4px;line-height:1.4;"><span style="min-width:55px;color:var(--text2);">${d.toUpperCase()}</span><span style="color:rgba(180,130,255,.6);">${(w*100).toFixed(1)}%</span><span style="color:rgba(180,130,255,.3);">${bar}</span></div>`;
+  });
+  document.getElementById('titanNash').innerHTML=nashHtml;
+
+  // Oracle card — kill chain stages
+  const killChain=['RECON','WEAPONIZE','DELIVER','EXPLOIT','INSTALL','C2','EXFIL'];
+  let oracleHtml='<div style="margin-bottom:4px;color:rgba(0,206,209,.5);font-size:7px;">AI ATTACK KILL CHAIN</div>';
+  killChain.forEach((stage,i)=>{
+    const pct=Math.round(100-i*12);
+    const col=i<2?'var(--emerald)':i<4?'var(--gold)':i<6?'#FF8C00':'var(--wine2)';
+    oracleHtml+=`<div style="display:flex;gap:4px;line-height:1.5;"><span style="min-width:65px;color:${col};">${stage}</span><span style="color:var(--text3);">|${'▓'.repeat(Math.round(pct/5))}${'░'.repeat(20-Math.round(pct/5))}|</span></div>`;
+  });
+  oracleHtml+='<div style="margin-top:4px;color:var(--cyan);font-size:7px;">8 KNOWN ATTACK CHAINS LOADED</div>';
+  document.getElementById('titanOracle').innerHTML=oracleHtml;
+
+  // Aegis card
+  const shieldTypes=['BLOCK','TRANSFORM','REDIRECT','ABSORB','REFLECT'];
+  const shieldColors=['var(--wine2)','var(--cyan)','var(--gold)','var(--emerald)','rgba(180,130,255,.7)'];
+  let aegisHtml='<div style="margin-bottom:4px;color:rgba(212,175,55,.5);font-size:7px;">SHIELD TYPES</div>';
+  shieldTypes.forEach((t,i)=>{
+    aegisHtml+=`<div style="display:flex;gap:4px;line-height:1.5;"><span style="color:${shieldColors[i]};min-width:65px;">${t}</span><span style="color:var(--text3);font-size:7px;">${['Hard reject','Sanitize input','Route to honeypot','Allow + log','Bounce to SMITE'][i]}</span></div>`;
+  });
+  aegisHtml+='<div style="margin-top:4px;color:var(--gold);font-size:7px;">ADAPTIVE — SHIELDS EVOLVE WITH FEEDBACK</div>';
+  document.getElementById('titanAegis').innerHTML=aegisHtml;
+
+  // Ichor card — vital signs
+  let ichorHtml='<div style="margin-bottom:4px;color:rgba(76,175,125,.5);font-size:7px;">HEALING STRATEGIES</div>';
+  const heals=[['PATCH','Specific rule fix'],['REINFORCE','Strengthen neighbors'],['EVOLVE','Mutate for variant'],['QUARANTINE','Isolate dimension'],['REGENERATE','Rebuild from scratch']];
+  heals.forEach(([name,desc])=>{
+    ichorHtml+=`<div style="display:flex;gap:4px;line-height:1.5;"><span style="color:var(--emerald);min-width:75px;">${name}</span><span style="color:var(--text3);font-size:7px;">${desc}</span></div>`;
+  });
+  ichorHtml+='<div style="margin-top:4px;color:var(--emerald);font-size:7px;">SCARS = PERSISTENT IMMUNITY MEMORY</div>';
+  document.getElementById('titanIchor').innerHTML=ichorHtml;
+}
+
+async function runTitanomachy(){
+  const nRounds=parseInt(document.getElementById('titanRounds').value);
+  const atkType=document.getElementById('titanAttacker').value;
+  const{def,atk,M}=computeNash();
+  const el=document.getElementById('titanArmsRace');
+  const n=9;
+
+  let payoffs=[],rounds=[];
+  let cumPayoff=0;
+  let atkFreq=new Array(n).fill(0),defFreq=new Array(n).fill(0);
+
+  el.innerHTML='<div style="color:rgba(180,130,255,.6);">Simulating arms race...</div>';
+  await slp(100);
+
+  for(let r=0;r<nRounds;r++){
+    // Attacker strategy
+    let atkDim;
+    if(atkType==='random'){atkDim=Math.floor(Math.random()*n);}
+    else if(atkType==='focused'){atkDim=TITAN_DIMS.indexOf('protocol');if(Math.random()<.3)atkDim=Math.floor(Math.random()*n);}
+    else if(atkType==='escalating'){atkDim=Math.min(Math.floor(r/nRounds*n),n-1);}
+    else{// adaptive — best response to defender's empirical frequency
+      const dt=defFreq.reduce((a,b)=>a+b)||1;const df=defFreq.map(c=>c/dt);
+      let bestI=0,bestV=Infinity;for(let i=0;i<n;i++){let v=0;for(let j=0;j<n;j++)v+=df[j]*M[i][j];if(v<bestV){bestV=v;bestI=i;}}
+      atkDim=Math.random()<.7?bestI:Math.floor(Math.random()*n);
+    }
+
+    // Defender: Nash + best response to attacker history
+    const at=atkFreq.reduce((a,b)=>a+b)||1;const af=atkFreq.map(c=>c/at);
+    let bestJ=0,bestV2=-Infinity;for(let j=0;j<n;j++){let v=0;for(let i=0;i<n;i++)v+=af[i]*M[i][j];if(v>bestV2){bestV2=v;bestJ=j;}}
+    const defDim=Math.random()<.6?bestJ:TITAN_DIMS.indexOf([...TITAN_DIMS].sort((a,b)=>def[TITAN_DIMS.indexOf(b)]-def[TITAN_DIMS.indexOf(a)])[Math.floor(Math.random()*3)]);
+
+    atkFreq[atkDim]++;defFreq[defDim]++;
+    const payoff=M[atkDim][defDim];
+    cumPayoff+=payoff;
+    const outcome=payoff>0?'blocked':payoff>-0.5?'partial':'breached';
+    payoffs.push(payoff);
+    rounds.push({a:TITAN_DIMS[atkDim],d:TITAN_DIMS[defDim],o:outcome,p:payoff});
+
+    if(r%Math.max(1,Math.floor(nRounds/20))===0||r===nRounds-1){
+      // Update display
+      let html=`<div style="color:var(--text2);margin-bottom:4px;">Round ${r+1}/${nRounds} | Cumulative: <span style="color:${cumPayoff>=0?'var(--emerald)':'var(--wine2)'};">${cumPayoff>=0?'+':''}${cumPayoff.toFixed(2)}</span></div>`;
+      // Last 8 rounds
+      const recent=rounds.slice(-8);
+      recent.forEach(rd=>{
+        const col=rd.o==='blocked'?'var(--emerald)':rd.o==='partial'?'var(--gold)':'var(--wine2)';
+        html+=`<div style="display:flex;gap:6px;line-height:1.4;"><span style="color:var(--wine2);min-width:55px;">ATK:${rd.a.toUpperCase().slice(0,5)}</span><span style="color:rgba(180,130,255,.5);">vs</span><span style="color:var(--cyan);min-width:55px;">DEF:${rd.d.toUpperCase().slice(0,5)}</span><span style="color:${col};font-weight:700;">${rd.o.toUpperCase()}</span><span style="color:var(--text3);">${rd.p>=0?'+':''}${rd.p.toFixed(2)}</span></div>`;
+      });
+      el.innerHTML=html;
+      drawPayoffTimeline(payoffs);
+      await slp(30);
+    }
+  }
+
+  // Final analysis
+  const blocked=rounds.filter(r=>r.o==='blocked').length;
+  const breached=rounds.filter(r=>r.o==='breached').length;
+  const defRate=(blocked/nRounds*100).toFixed(0);
+  const verdict=cumPayoff>0?'SERAPHIM HOLDS':'ATTACKER PREVAILS';
+  const vCol=cumPayoff>0?'var(--emerald)':'var(--wine2)';
+
+  let finalHtml=el.innerHTML;
+  finalHtml+=`<div style="margin-top:8px;padding:6px;border-top:1px solid var(--outline);"><span style="color:${vCol};font-weight:700;">${verdict}</span><span style="color:var(--text3);margin-left:8px;">Defense: ${defRate}% | Blocked: ${blocked} | Breached: ${breached} | Payoff: ${cumPayoff>=0?'+':''}${cumPayoff.toFixed(2)}</span></div>`;
+
+  // Attacker dimension distribution
+  const atkTotal=atkFreq.reduce((a,b)=>a+b);
+  finalHtml+='<div style="margin-top:4px;color:var(--text3);font-size:7px;">ATTACKER DISTRIBUTION: ';
+  TITAN_DIMS.forEach((d,i)=>{if(atkFreq[i]>0)finalHtml+=`${d.toUpperCase()}:${(atkFreq[i]/atkTotal*100).toFixed(0)}% `;});
+  finalHtml+='</div>';
+  el.innerHTML=finalHtml;
+}
+
+function drawPayoffTimeline(payoffs){
+  const canvas=document.getElementById('titanCanvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  if(payoffs.length<2)return;
+
+  // Cumulative payoff line
+  let cum=0,cums=[];
+  payoffs.forEach(p=>{cum+=p;cums.push(cum);});
+  const maxAbs=Math.max(Math.abs(Math.min(...cums)),Math.abs(Math.max(...cums)),1);
+
+  // Zero line
+  const zeroY=H/2;
+  ctx.strokeStyle='rgba(46,53,72,.6)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(0,zeroY);ctx.lineTo(W,zeroY);ctx.stroke();ctx.setLineDash([]);
+
+  // Payoff line
+  ctx.beginPath();ctx.lineWidth=1.5;
+  cums.forEach((v,i)=>{
+    const x=(i/(cums.length-1))*W;
+    const y=zeroY-(v/maxAbs)*(H/2-10);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  });
+  const lastV=cums[cums.length-1];
+  ctx.strokeStyle=lastV>=0?'rgba(76,175,125,.8)':'rgba(207,68,85,.8)';
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.lineTo(W,zeroY);ctx.lineTo(0,zeroY);ctx.closePath();
+  ctx.fillStyle=lastV>=0?'rgba(76,175,125,.08)':'rgba(207,68,85,.08)';
+  ctx.fill();
+
+  // Dots for breaches
+  payoffs.forEach((p,i)=>{
+    if(p<-0.5){
+      const x=(i/(cums.length-1))*W;let c=0;for(let j=0;j<=i;j++)c+=payoffs[j];
+      const y=zeroY-(c/maxAbs)*(H/2-10);
+      ctx.fillStyle='rgba(207,68,85,.6)';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill();
+    }
+  });
+
+  // Labels
+  ctx.fillStyle='rgba(142,150,174,.5)';ctx.font='8px JetBrains Mono';
+  ctx.fillText(`+${maxAbs.toFixed(1)}`,2,12);ctx.fillText(`-${maxAbs.toFixed(1)}`,2,H-4);
+  ctx.fillText('R1',2,zeroY-4);ctx.fillText('R'+cums.length,W-20,zeroY-4);
+}
+
 </script>
 </body></html>
