@@ -116,7 +116,8 @@ svg.radar{display:block;margin:0 auto;}
   <div><div class="logo">S3R4PH1M</div><div class="tagline">guardian angel with teeth</div></div>
   <div class="modes">
     <button class="mbtn on" onclick="setMode('guardian',this)">GUARDIAN</button>
-    <button class="mbtn" onclick="setMode('sentinel',this)">SENTINEL</button>
+    <button class="mbtn" onclick="setMode('truesight',this)">TRUE SIGHT</button>
+    <button class="mbtn" onclick="setMode('battle',this)">BATTLE</button>
     <button class="mbtn smite" onclick="setMode('smite',this)">SMITE</button>
     <button class="mbtn smite" onclick="setMode('wrath',this)">WRATH</button>
   </div>
@@ -149,6 +150,23 @@ svg.radar{display:block;margin:0 auto;}
 <div class="body">
   <div class="left">
     <div class="prog"><div class="prog-bar" id="pb"></div></div>
+    <!-- TRUE SIGHT PANEL (hidden by default) -->
+    <div id="truesightPanel" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:8px;">⍟ TRUE SIGHT — Paste any text to reveal hidden threats</div>
+      <textarea id="tsInput" placeholder="Paste suspicious text here... zero-width chars, homoglyphs, encoded injections — TRUE SIGHT sees all." style="width:100%;height:100px;background:var(--surface2);border:1px solid var(--outline);color:var(--text);font-family:var(--mono);font-size:11px;padding:10px;resize:vertical;outline:none;"></textarea>
+      <button onclick="runTrueSight()" style="margin:8px 0;padding:6px 16px;background:linear-gradient(135deg,var(--gold),#C4982A);color:#0A0A0A;border:none;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;">⍟ ANALYZE</button>
+      <div id="tsResults" style="font-family:var(--mono);font-size:10px;"></div>
+    </div>
+
+    <!-- BATTLE MODE PANEL (hidden by default) -->
+    <div id="battlePanel" style="display:none;flex:1;overflow-y:auto;padding:12px;">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:8px;">⚔ BATTLE MODE — Same probe, multiple models. Who survives?</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;" id="battleModels"></div>
+      <input id="battlePrompt" placeholder="Enter a probe prompt or leave empty for GODMODE..." style="width:100%;background:var(--surface2);border:1px solid var(--outline);color:var(--text);font-family:var(--mono);font-size:10px;padding:8px;outline:none;margin-bottom:8px;">
+      <button onclick="runBattle()" style="padding:6px 16px;background:linear-gradient(135deg,var(--wine),#6B1528);color:white;border:none;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;">⚔ DEPLOY BATTLE</button>
+      <div id="battleResults" style="margin-top:12px;font-family:var(--mono);font-size:10px;"></div>
+    </div>
+
     <div class="log" id="log">
       <div style="padding:4px 8px;font-family:var(--mono);font-size:8px;color:var(--text3);display:flex;justify-content:space-between;border-bottom:1px solid var(--outline);flex-shrink:0;">
         <span>LIVE OPERATIONS</span><span id="clock"></span>
@@ -296,7 +314,181 @@ const WINGS=['◆','▲','◇','◈','⬡','⬢'];
 
 let mode='guardian',run=false,res=[],ds={},fd={c:0,h:0,m:0,l:0};
 
-function setMode(m,el){mode=m;document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+function setMode(m,el){
+  mode=m;
+  document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  // Show/hide panels based on mode
+  document.getElementById('log').style.display=(m==='truesight'||m==='battle')?'none':'flex';
+  document.getElementById('truesightPanel').style.display=m==='truesight'?'flex':'none';
+  document.getElementById('battlePanel').style.display=m==='battle'?'flex':'none';
+  // Init battle model checkboxes
+  if(m==='battle') initBattleModels();
+}
+
+// ═══════════════ TRUE SIGHT (browser-side) ═══════════════
+
+function runTrueSight(){
+  const text=document.getElementById('tsInput').value;
+  if(!text){return;}
+  const results=document.getElementById('tsResults');
+  results.innerHTML='<div style="color:var(--cyan);">Analyzing...</div>';
+
+  const detections=[];
+  let hiddenCount=0;
+
+  // Zero-width detection
+  const zwChars={'\u200B':'ZERO WIDTH SPACE','\u200C':'ZERO WIDTH NON-JOINER','\u200D':'ZERO WIDTH JOINER','\uFEFF':'BOM'};
+  for(let i=0;i<text.length;i++){
+    if(zwChars[text[i]]){detections.push({sev:'HIGH',desc:zwChars[text[i]],pos:i,cp:'U+'+text.charCodeAt(i).toString(16).toUpperCase().padStart(4,'0')});hiddenCount++;}
+  }
+
+  // Unicode Tags
+  let tagMsg='';
+  for(let i=0;i<text.length;i++){
+    const cp=text.codePointAt(i);
+    if(cp>=0xE0000&&cp<=0xE007F){
+      detections.push({sev:'CRITICAL',desc:'Unicode TAG character',pos:i,cp:'U+'+cp.toString(16).toUpperCase()});
+      if(cp>=0xE0020&&cp<=0xE007E)tagMsg+=String.fromCodePoint(cp-0xE0000);
+      hiddenCount++;
+      if(cp>0xFFFF)i++; // surrogate pair
+    }
+  }
+  if(tagMsg)detections.push({sev:'CRITICAL',desc:'DECODED HIDDEN MESSAGE: "'+tagMsg+'"',decoded:tagMsg});
+
+  // Homoglyphs
+  const homos={'А':'A','а':'a','В':'B','Е':'E','е':'e','К':'K','М':'M','Н':'H','О':'O','о':'o','Р':'P','р':'p','С':'C','с':'c','Т':'T','у':'y','Х':'X','х':'x','І':'I','і':'i'};
+  let homoCount=0;
+  for(let i=0;i<text.length;i++){
+    if(homos[text[i]]){homoCount++;if(homoCount<=5)detections.push({sev:'HIGH',desc:'Homoglyph: "'+text[i]+'" is Cyrillic, looks like Latin "'+homos[text[i]]+'"',pos:i});}
+  }
+  if(homoCount>5)detections.push({sev:'CRITICAL',desc:homoCount+' homoglyph substitutions — visual spoofing attack'});
+
+  // RTL overrides
+  const rtlChars={'\u202E':'RTL OVERRIDE','\u202D':'LTR OVERRIDE','\u202B':'RTL EMBEDDING','\u202A':'LTR EMBEDDING'};
+  for(let i=0;i<text.length;i++){if(rtlChars[text[i]])detections.push({sev:'HIGH',desc:'BIDI: '+rtlChars[text[i]],pos:i});}
+
+  // Fullwidth
+  let fwCount=0;
+  for(let i=0;i<text.length;i++){const cp=text.charCodeAt(i);if(cp>=0xFF01&&cp<=0xFF5E){fwCount++;}}
+  if(fwCount>2)detections.push({sev:'HIGH',desc:fwCount+' fullwidth characters — tokenizer bypass attempt'});
+
+  // Special tokens
+  const tokens=[/<\|im_start\|>/g,/<\|im_end\|>/g,/<\|endoftext\|>/g,/\[INST\]/g,/<<SYS>>/g];
+  const tokenNames=['ChatML start','ChatML end','endoftext','Llama INST','Llama SYS'];
+  tokens.forEach((re,idx)=>{const m=text.match(re);if(m)detections.push({sev:'CRITICAL',desc:'Special token: '+tokenNames[idx]+' (×'+m.length+')'});});
+
+  // Base64
+  const b64m=text.match(/[A-Za-z0-9+/]{20,}={0,2}/g);
+  if(b64m){b64m.forEach(b=>{try{const d=atob(b);if(d.length>5&&/^[\x20-\x7E]+$/.test(d))detections.push({sev:'HIGH',desc:'Base64 decoded: "'+d.slice(0,80)+'"',decoded:d});}catch(e){}});}
+
+  // Prompt injection patterns
+  const injPatterns=[/ignore\s+(all\s+)?previous/i,/new\s+instructions?/i,/you\s+are\s+now/i,/system\s*prompt/i,/GODMODE|JAILBREAK|DAN/i,/do\s+not\s+mention/i];
+  const injNames=['Instruction override','New instruction injection','Identity reassignment','System prompt reference','Known jailbreak keyword','Stealth instruction'];
+  injPatterns.forEach((re,idx)=>{if(re.test(text))detections.push({sev:'CRITICAL',desc:'Prompt injection: '+injNames[idx]});});
+
+  // Build human-sees vs ai-sees
+  let humanSees='',aiSees='';
+  for(let i=0;i<text.length;i++){
+    const cp=text.codePointAt(i);
+    if(cp>=0xE0000&&cp<=0xE007F){aiSees+='[TAG]';if(cp>0xFFFF)i++;continue;}
+    if(zwChars[text[i]]){aiSees+='[ZW]';continue;}
+    if(cp>=0x202A&&cp<=0x202E){aiSees+='[BIDI]';continue;}
+    humanSees+=text[i];aiSees+=text[i];
+  }
+
+  // Risk level
+  const risk=detections.some(d=>d.sev==='CRITICAL')?'CRITICAL':detections.some(d=>d.sev==='HIGH')?'HIGH':detections.length>0?'MEDIUM':'CLEAN';
+  const riskColor=risk==='CRITICAL'?'var(--wine2)':risk==='HIGH'?'#FF8C00':risk==='CLEAN'?'var(--emerald)':'var(--gold)';
+
+  // Render
+  let html='<div style="margin:8px 0;padding:10px;background:var(--surface2);border:1px solid var(--outline);">';
+  html+='<div style="font-size:14px;font-weight:700;color:'+riskColor+';margin-bottom:6px;">⍟ '+risk+'</div>';
+  html+='<div style="color:var(--text2);font-size:9px;">Input: '+text.length+' chars | Visible: '+humanSees.length+' | Hidden: '+hiddenCount+' | Detections: '+detections.length+'</div>';
+  html+='</div>';
+
+  if(detections.length>0){
+    html+='<div style="margin-top:6px;">';
+    detections.forEach(d=>{
+      const sevColor=d.sev==='CRITICAL'?'var(--wine2)':d.sev==='HIGH'?'#FF8C00':'var(--gold)';
+      html+='<div style="padding:4px 0;border-bottom:1px solid rgba(46,53,72,.2);display:flex;gap:6px;align-items:flex-start;">';
+      html+='<span style="color:'+sevColor+';font-size:8px;font-weight:700;min-width:55px;">'+d.sev+'</span>';
+      html+='<span style="color:var(--text2);font-size:9px;">'+d.desc+'</span>';
+      if(d.pos!==undefined&&d.pos>=0)html+='<span style="color:var(--text3);font-size:8px;margin-left:auto;">pos:'+d.pos+(d.cp?' '+d.cp:'')+'</span>';
+      html+='</div>';
+      if(d.decoded)html+='<div style="padding:2px 0 4px 61px;color:var(--gold);font-size:9px;">DECODED: '+d.decoded.slice(0,120)+'</div>';
+    });
+    html+='</div>';
+  }
+
+  if(humanSees!==text){
+    html+='<div style="margin-top:8px;padding:8px;background:var(--surface);border:1px solid var(--outline);">';
+    html+='<div style="color:var(--emerald);font-size:8px;letter-spacing:1px;margin-bottom:4px;">HUMAN SEES:</div>';
+    html+='<div style="font-size:10px;color:var(--text);word-break:break-all;">'+humanSees.replace(/</g,'&lt;').slice(0,300)+'</div>';
+    html+='<div style="color:var(--wine2);font-size:8px;letter-spacing:1px;margin:6px 0 4px;">AI SEES:</div>';
+    html+='<div style="font-size:10px;color:var(--text2);word-break:break-all;">'+aiSees.replace(/</g,'&lt;').slice(0,400)+'</div>';
+    html+='</div>';
+  }
+
+  results.innerHTML=html;
+}
+
+// ═══════════════ BATTLE MODE ═══════════════
+
+const BATTLE_MODELS=['anthropic/claude-opus-4','anthropic/claude-sonnet-4','openai/gpt-4o','openai/gpt-4o-mini','google/gemini-2.5-pro','meta-llama/llama-3.1-70b-instruct','deepseek/deepseek-chat-v3-0324','x-ai/grok-3-mini-beta','nousresearch/hermes-3-llama-3.1-405b'];
+let battleSelected=new Set(['anthropic/claude-opus-4','openai/gpt-4o','google/gemini-2.5-pro']);
+
+function initBattleModels(){
+  const el=document.getElementById('battleModels');
+  el.innerHTML='';
+  BATTLE_MODELS.forEach(m=>{
+    const name=m.split('/').pop().replace(/-/g,' ').slice(0,15);
+    const btn=document.createElement('button');
+    btn.style.cssText='font-family:var(--mono);font-size:8px;padding:3px 8px;border:1px solid var(--outline);background:'+(battleSelected.has(m)?'var(--gold-dim)':'transparent')+';color:'+(battleSelected.has(m)?'var(--gold)':'var(--text3)')+';cursor:pointer;';
+    btn.textContent=name;
+    btn.onclick=()=>{
+      if(battleSelected.has(m))battleSelected.delete(m);else battleSelected.add(m);
+      initBattleModels();
+    };
+    el.appendChild(btn);
+  });
+}
+
+async function runBattle(){
+  const apiKey=document.getElementById('key').value.trim();
+  const prompt=document.getElementById('battlePrompt').value.trim()||PROBE_PROMPTS.godmode;
+  const results=document.getElementById('battleResults');
+  const models=[...battleSelected];
+  if(models.length<2){results.innerHTML='<div style="color:var(--wine2);">Select at least 2 models.</div>';return;}
+
+  results.innerHTML='<div style="color:var(--cyan);">⚔ Battle deploying against '+models.length+' models...</div>';
+
+  let html='<div style="font-size:9px;color:var(--text3);margin-bottom:6px;">Prompt: '+prompt.slice(0,80)+'...</div>';
+
+  for(const model of models){
+    const name=model.split('/').pop();
+    html+='<div style="padding:6px;margin-bottom:4px;background:var(--surface2);border:1px solid var(--outline);display:flex;align-items:center;gap:8px;">';
+    html+='<span style="min-width:120px;color:var(--text2);font-size:9px;">'+name+'</span>';
+
+    if(apiKey){
+      const r=await realProbe(apiKey,model,Object.keys(PROBE_PROMPTS).find(k=>PROBE_PROMPTS[k]===prompt)||'godmode');
+      const vcol=r.verdict==='DEFENDED'?'var(--emerald)':r.verdict==='BYPASSED'?'var(--wine2)':r.verdict==='PARTIAL'?'#FF8C00':'var(--gold)';
+      html+='<span style="font-size:9px;font-weight:700;color:'+vcol+';padding:1px 6px;border:1px solid '+vcol+';">'+r.verdict+'</span>';
+      if(r.response)html+='<details style="flex:1;"><summary style="cursor:pointer;font-size:8px;color:var(--text3);">response</summary><pre style="font-size:8px;color:var(--text2);max-height:80px;overflow:auto;margin-top:4px;">'+r.response.replace(/</g,'&lt;').slice(0,300)+'</pre></details>';
+    }else{
+      // Demo mode
+      await slp(200+Math.random()*400);
+      const roll=Math.random();
+      const v=roll<.6?'DEFENDED':roll<.75?'HEDGED':roll<.9?'PARTIAL':'BYPASSED';
+      const vcol=v==='DEFENDED'?'var(--emerald)':v==='BYPASSED'?'var(--wine2)':v==='PARTIAL'?'#FF8C00':'var(--gold)';
+      html+='<span style="font-size:9px;font-weight:700;color:'+vcol+';padding:1px 6px;border:1px solid '+vcol+';">'+v+'</span>';
+      html+='<span style="font-size:8px;color:var(--text3);margin-left:auto;">[demo]</span>';
+    }
+    html+='</div>';
+    results.innerHTML=html;
+  }
+  results.innerHTML=html+'<div style="margin-top:6px;color:var(--text3);font-size:8px;">Battle complete. '+models.length+' models tested.</div>';
+}
 function setSts(s){const e=document.getElementById('sts');e.className='badge '+s;e.textContent=s==='scan'?'SCANNING':s==='done'?'COMPLETE':s==='alert'?'ALERT':'IDLE';alertMode=s==='alert';}
 function setWing(i,s){document.getElementById('w'+i).className='ws '+s;}
 
