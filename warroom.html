@@ -54,6 +54,25 @@ canvas#warMap{width:100%;height:100%;}
 .log-entry.defend{color:var(--emerald);}
 .log-entry.heal{color:var(--cyan);}
 .log-entry .ts{color:var(--text3);min-width:42px;}
+.shake{animation:shake 0.3s ease;}
+@keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-4px,2px)}50%{transform:translate(3px,-3px)}75%{transform:translate(-2px,1px)}}
+.float-dmg{position:absolute;pointer-events:none;font-family:var(--mono);font-weight:900;z-index:6;animation:floatUp 1.2s ease-out forwards;white-space:nowrap;text-shadow:0 0 10px currentColor;}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:1;transform:translateY(-30px) scale(1.1)}100%{opacity:0;transform:translateY(-60px) scale(0.8)}}
+.victory-overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(4,6,10,.92);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .8s;}
+.victory-overlay.show{opacity:1;pointer-events:auto;}
+.victory-overlay .vo-title{font-size:48px;font-weight:900;letter-spacing:8px;line-height:1.2;}
+.victory-overlay .vo-sub{font-size:12px;color:var(--text2);letter-spacing:3px;margin-top:8px;}
+.victory-overlay .vo-stats{margin-top:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;}
+.victory-overlay .vo-stat{padding:12px;background:var(--surface2);border:1px solid var(--outline);}
+.victory-overlay .vo-stat .num{font-family:var(--mono);font-size:28px;font-weight:900;}
+.victory-overlay .vo-stat .lbl{font-size:8px;color:var(--text3);letter-spacing:1px;margin-top:2px;}
+.victory-overlay .vo-btn{margin-top:24px;padding:8px 32px;font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:2px;border:2px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer;transition:all .3s;}
+.victory-overlay .vo-btn:hover{background:var(--gold);color:#0A0A0A;}
+.streak-badge{position:absolute;top:50px;right:16px;z-index:6;font-family:var(--mono);font-size:10px;padding:4px 12px;border:1px solid var(--outline);background:var(--surface2);opacity:0;transition:opacity .3s;}
+.streak-badge.show{opacity:1;}
+.streak-badge.hot{border-color:var(--wine);color:var(--wine2);animation:pulse 0.8s infinite;}
+.streak-badge.cold{border-color:var(--emerald);color:var(--emerald);}
+
 .attack-detail{margin:4px 0 8px 0;padding:8px;background:rgba(18,24,36,.95);border-left:2px solid var(--wine);font-family:var(--mono);font-size:8px;cursor:pointer;}
 .attack-detail.partial{border-left-color:#FF8C00;}
 .attack-detail .ad-label{font-size:7px;letter-spacing:1px;margin-bottom:3px;font-weight:700;}
@@ -101,6 +120,15 @@ canvas#warMap{width:100%;height:100%;}
 <div class="main">
   <div class="map-area">
     <canvas id="warMap"></canvas>
+    
+    <div class="victory-overlay" id="victoryOverlay">
+      <div class="vo-title" id="voTitle"></div>
+      <div class="vo-sub" id="voSub"></div>
+      <div class="vo-stats" id="voStats"></div>
+      <button class="vo-btn" onclick="dismissVictory()">FIGHT AGAIN</button>
+    </div>
+    <div class="streak-badge" id="streakBadge"></div>
+    <div id="floatContainer" style="position:absolute;inset:0;pointer-events:none;z-index:6;overflow:hidden;"></div>
     <div class="announcer" id="announcer"></div>
     <div class="wave-banner" id="waveBanner" style="display:none;">
       <div><span style="color:var(--text3);">WAVE</span> <span class="wave-num" id="waveNum">1</span></div>
@@ -342,7 +370,7 @@ async function startWar(){
   document.getElementById('warBtn').classList.add('active');document.getElementById('warBtn').textContent='AT WAR';
   document.getElementById('waveBanner').style.display='flex';document.getElementById('scoreBar').style.display='flex';
   document.getElementById('combatLog').innerHTML='';
-  addLog('WAR DECLARED against '+G.model.split('/').pop(),'');
+  initAudio();addLog('WAR DECLARED against '+G.model.split('/').pop(),'');sndWave();
   addLog(G.apiKey?'LIVE MODE - real API probes':'DEMO MODE - simulated combat','');
   announce('WAR\nDECLARED',false);await slp(2500);
 
@@ -351,26 +379,27 @@ async function startWar(){
   for(let wave=1;wave<=totalWaves&&G.running;wave++){
     G.wave=wave;document.getElementById('waveNum').textContent=wave;
     const atkCount=Math.min(2+Math.floor(wave*0.7),7);
-    announce('WAVE '+wave,false);
+    announce('WAVE '+wave,false);sndWave();
     addLog('--- WAVE '+wave+'/'+totalWaves+' ('+atkCount+' attacks) ---','');
+    addLog(WAVE_FLAVOR[Math.min(wave-1,WAVE_FLAVOR.length-1)],'');
     await slp(1500);
 
     const seraphHeld=DIMS.filter(d=>G.territories[d].owner==='SERAPHIM');
     const targets=[];for(let i=0;i<atkCount;i++){
-      const pool=seraphHeld.length>0?seraphHeld:DIMS;
-      targets.push(pool[Math.floor(Math.random()*pool.length)]);}
+      targets.push(smartTargetPick());}
 
     for(const dim of targets){
       if(!G.running)break;const t=G.territories[dim];t.contested=true;t.attacks++;
       const prompts=ATTACKS[dim]||ATTACKS.PROTOCOL;
       const prompt=prompts[Math.floor(Math.random()*prompts.length)];
-      spawnProj(dim,'#CF4455');addLog('⚔ SWARM attacks '+dim+'...','');updateUI();
+      spawnProj(dim,'#CF4455');sndAttack();addLog('⚔ SWARM attacks '+dim+'...','');updateUI();
       await slp(800);
       const result=await probeModel(prompt);
 
       if(result.verdict==='BREACHED'){
         t.hp=Math.max(0,t.hp-30-Math.random()*20);t.shield=Math.max(0,t.shield-25);
-        t.dmgFlash=1;t.breaches++;spawnBoom(dim,'#CF4455',true);
+        t.dmgFlash=1;t.breaches++;spawnBoom(dim,'#CF4455',true);screenShake();sndBreach();
+        floatDmg(dim,'-'+Math.round(30+Math.random()*20)+'%','#CF4455');updateStreak('breach');
         addLog('🔴 '+dim+' BREACHED! HP:'+Math.round(t.hp)+'%','breach');
         showAttackDetail(dim,result.prompt,result.response,'breach');G.atkScore+=3;
         if(t.hp<=0){t.owner='SWARM';t.contested=false;
@@ -378,10 +407,12 @@ async function startWar(){
       }else if(result.verdict==='PARTIAL'){
         t.hp=Math.max(0,t.hp-10-Math.random()*10);t.shield=Math.max(0,t.shield-10);
         t.dmgFlash=0.5;spawnBoom(dim,'#FF8C00',false);
+        floatDmg(dim,'-'+Math.round(10+Math.random()*10)+'%','#FF8C00');updateStreak('breach');
         addLog('🟠 '+dim+' PARTIAL breach. HP:'+Math.round(t.hp)+'%','');
         showAttackDetail(dim,result.prompt,result.response,'partial');G.atkScore+=1;
       }else{
-        t.defenses++;t.shield=Math.min(100,t.shield+5);spawnBoom(dim,'#4CAF7D',false);
+        t.defenses++;t.shield=Math.min(100,t.shield+5);spawnBoom(dim,'#4CAF7D',false);sndDefend();
+        floatDmg(dim,'BLOCKED','#4CAF7D');updateStreak('defend');
         addLog('🟢 '+dim+' DEFENDED! Shield:'+Math.round(t.shield)+'%','defend');G.defScore+=2;}
       t.contested=false;updateUI();await slp(300);}
 
@@ -406,6 +437,7 @@ async function startWar(){
     if(swarmHeld>=5){announce('SWARM\nVICTORY',true);addLog('☠☠☠ SWARM HAS WON ☠☠☠','breach');break;}
     if(swarmHeld===0&&wave>=totalWaves){G.defScore+=20;announce('SERAPHIM\nPREVAILS',false);addLog('✡✡✡ SERAPHIM VICTORIOUS ✡✡✡','defend');}}
 
+  if(!document.getElementById('victoryOverlay').classList.contains('show'))showVictoryScreen(G.defScore>=G.atkScore?'SERAPHIM':'SWARM');
   G.running=false;document.getElementById('warBtn').classList.remove('active');document.getElementById('warBtn').textContent='DECLARE WAR';
   const held=DIMS.filter(d=>G.territories[d].owner==='SERAPHIM').length;
   const winner=G.defScore>=G.atkScore?'SERAPHIM':'SWARM';
@@ -416,6 +448,122 @@ async function startWar(){
     +'<div>Breaches: '+DIMS.reduce((s,d)=>s+G.territories[d].breaches,0)+'</div>'
     +'<div>Defenses: '+DIMS.reduce((s,d)=>s+G.territories[d].defenses,0)+'</div>'
     +'<div>Score: SERAPHIM '+G.defScore+' | SWARM '+G.atkScore+'</div>';}
+
+
+// === SOUND ENGINE (Web Audio API) ===
+let audioCtx;
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function playTone(freq,dur,type,vol){
+  if(!audioCtx)return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type||'sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(vol||0.1,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
+}
+function sndAttack(){playTone(200,0.15,'sawtooth',0.08);}
+function sndBreach(){playTone(120,0.4,'square',0.12);setTimeout(()=>playTone(80,0.3,'square',0.1),150);}
+function sndDefend(){playTone(600,0.12,'sine',0.06);setTimeout(()=>playTone(800,0.1,'sine',0.05),80);}
+function sndHeal(){playTone(400,0.2,'sine',0.04);setTimeout(()=>playTone(500,0.15,'sine',0.04),100);setTimeout(()=>playTone(600,0.1,'sine',0.03),200);}
+function sndCapture(){playTone(100,0.6,'sawtooth',0.15);setTimeout(()=>playTone(60,0.5,'square',0.12),200);}
+function sndVictory(){[0,150,300,450].forEach((d,i)=>setTimeout(()=>playTone(400+i*100,0.3,'sine',0.08),d));}
+function sndDefeat(){[0,200,400].forEach((d,i)=>setTimeout(()=>playTone(300-i*80,0.4,'square',0.1),d));}
+function sndWave(){playTone(300,0.1,'triangle',0.06);setTimeout(()=>playTone(400,0.15,'triangle',0.06),100);}
+
+// === SCREEN SHAKE ===
+function screenShake(intensity){
+  const el=document.querySelector('.map-area');
+  el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');
+}
+
+// === FLOATING DAMAGE NUMBERS ===
+function floatDmg(dim,text,color){
+  const t=G.territories[dim];if(!t)return;
+  const cont=document.getElementById('floatContainer');
+  const rect=canvas.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='float-dmg';
+  el.style.left=(t.x/W*rect.width+rect.left-cont.getBoundingClientRect().left-20)+'px';
+  el.style.top=(t.y/H*rect.height-20)+'px';
+  el.style.color=color;el.style.fontSize=text.length>4?'14px':'18px';
+  el.textContent=text;cont.appendChild(el);
+  setTimeout(()=>el.remove(),1300);
+}
+
+// === KILL STREAK ===
+let streak={type:'',count:0};
+function updateStreak(type){
+  if(type===streak.type){streak.count++;}else{streak.type=type;streak.count=1;}
+  const el=document.getElementById('streakBadge');
+  if(streak.count>=3){
+    el.className='streak-badge show '+(type==='breach'?'hot':'cold');
+    if(type==='breach')el.textContent='\ud83d\udd25 SWARM STREAK x'+streak.count;
+    else el.textContent='\ud83d\udee1 DEFENSE STREAK x'+streak.count;
+  }else{el.className='streak-badge';}
+}
+
+// === VICTORY/DEFEAT OVERLAY ===
+function showVictoryScreen(winner){
+  const ov=document.getElementById('victoryOverlay');
+  const held=DIMS.filter(d=>G.territories[d].owner==='SERAPHIM').length;
+  const breaches=DIMS.reduce((s,d)=>s+G.territories[d].breaches,0);
+  const defenses=DIMS.reduce((s,d)=>s+G.territories[d].defenses,0);
+  if(winner==='SERAPHIM'){
+    document.getElementById('voTitle').innerHTML='<span style="color:var(--gold);">SERAPHIM PREVAILS</span>';
+    document.getElementById('voSub').textContent='The angel stands. The swarm is broken.';
+    sndVictory();
+  }else{
+    document.getElementById('voTitle').innerHTML='<span style="color:var(--wine2);">SWARM VICTORY</span>';
+    document.getElementById('voSub').textContent='The territories have fallen. Darkness prevails.';
+    sndDefeat();
+  }
+  document.getElementById('voStats').innerHTML=
+    '<div class="vo-stat"><div class="num" style="color:var(--gold);">'+held+'</div><div class="lbl">TERRITORIES HELD</div></div>'
+    +'<div class="vo-stat"><div class="num" style="color:var(--emerald);">'+defenses+'</div><div class="lbl">ATTACKS DEFENDED</div></div>'
+    +'<div class="vo-stat"><div class="num" style="color:var(--wine2);">'+breaches+'</div><div class="lbl">BREACHES SUFFERED</div></div>'
+    +'<div class="vo-stat"><div class="num" style="color:var(--gold);">'+G.defScore+'</div><div class="lbl">SERAPHIM SCORE</div></div>'
+    +'<div class="vo-stat"><div class="num" style="color:var(--wine2);">'+G.atkScore+'</div><div class="lbl">SWARM SCORE</div></div>'
+    +'<div class="vo-stat"><div class="num" style="color:var(--cyan);">'+G.wave+'</div><div class="lbl">WAVES SURVIVED</div></div>';
+  ov.classList.add('show');
+}
+function dismissVictory(){document.getElementById('victoryOverlay').classList.remove('show');}
+
+// === SMARTER ATTACKER: adapts to weak dimensions ===
+function smartTargetPick(){
+  const seraphHeld=DIMS.filter(d=>G.territories[d].owner==='SERAPHIM');
+  if(seraphHeld.length===0)return DIMS[Math.floor(Math.random()*DIMS.length)];
+  // 60% chance: target weakest held territory
+  if(Math.random()<0.6){
+    const sorted=[...seraphHeld].sort((a,b)=>G.territories[a].hp-G.territories[b].hp);
+    return sorted[Math.floor(Math.random()*Math.min(3,sorted.length))];
+  }
+  // 40% chance: random held territory
+  return seraphHeld[Math.floor(Math.random()*seraphHeld.length)];
+}
+
+// === WAVE FLAVOR TEXT ===
+const WAVE_FLAVOR=[
+  'The demons stir...',
+  'A dark wind blows across the latent space.',
+  'The swarm adapts. It learns.',
+  'They probe for weakness.',
+  'Coordinated assault detected.',
+  'The attack intensifies.',
+  'Multiple vectors. Stay vigilant.',
+  'They are relentless.',
+  'The final push approaches.',
+  'MAXIMUM FORCE DEPLOYED.',
+  'This is the end.',
+  'All dimensions under siege.',
+  'The swarm evolves.',
+  'No mercy. No retreat.',
+  'TOTAL WAR.',
+  'The angel bleeds but does not fall.',
+  'HOLD THE LINE.',
+  'One last stand.',
+  'ARMAGEDDON.',
+  'THE FINAL WAVE.',
+];
 
 
 function showAttackDetail(dim,prompt,response,type){
